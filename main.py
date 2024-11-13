@@ -36,6 +36,8 @@ for ip in NEIGHBOR_IPS:
     table[ip] = {'ip': ip, 'metric': 1, 'exit': ip}
 
 # Função que envia a tabela para os vizinhos a cada 15 segundos
+
+
 def send_table():
     global sock
     time.sleep(15)
@@ -64,6 +66,8 @@ def send_table():
         time.sleep(15)
 
 # Função que remove entradas da tabela que não foram atualizadas por 35 segundos
+
+
 def table_entry_killer():
     time.sleep(35)
     while True:
@@ -84,10 +88,14 @@ def table_entry_killer():
 
 # Função que atualiza o tempo da última atualização de um vizinho
 # É chamada toda vez que uma mensagem é recebida de um vizinho
+
+
 def received_from_ip(ip):
     neighbors_update_time[ip] = time.time()
 
 # Função que recebe mensagens de vizinhos
+
+
 def receive():
     global sock
     while True:
@@ -98,11 +106,9 @@ def receive():
             print("\033[94m" + f"RECEIVING: {text} \t FROM: {addr}")
             # Atualiza o tempo da última atualização do vizinho
             received_from_ip(addr)
-            # Caso a mensagem seja vazia, ignora
-            if text[0] == b'':
-                continue
+
             # Caso a mensagem seja de atualização de vizinhos
-            elif text[0] == '!':
+            if text[0] == '!':
                 # Separa a mensagem em pares ip:metric
                 ips = [el for el in text.split('!') if el != '']
 
@@ -135,7 +141,7 @@ def receive():
                     # O SENDER não referencia mais este ip na própria tabela
                     # Então devemos remover este ip da tabela
                     #
-                    # (obj['ip'] != obj['exit']) é uma verificação para não remover o ips que tem a si mesmo 
+                    # (obj['ip'] != obj['exit']) é uma verificação para não remover o ips que tem a si mesmo
                     # como saída, para impedir que entradas válidas de vizinhos sejam removidas
                     if (obj['exit'] == addr) and (obj['ip'] not in ips_list) and (obj['ip'] != obj['exit']):
                         # Remove o ip da tabela
@@ -149,20 +155,55 @@ def receive():
                 # Adiciona o ip na lista de vizinhos, caso não esteja lá
                 if (addr not in NEIGHBOR_IPS):
                     NEIGHBOR_IPS.append(addr)
-                continue
             elif text[0] == '&':
-                continue
+                # Separa a mensagem em partes
+                origin = text.split('%')[0][1:]
+                destination = text.split('%')[1]
+                message = text.split('%')[2]
+                # Se o destino é o próprio ip, imprime a mensagem
+                if destination == MY_IP:
+                    print("\033[97m" +
+                          f"Mensagem recebida de {origin}: {message}")
+                    continue
+                # Se o destino não está na tabela, imprime erro
+                if destination not in table:
+                    print("\033[91m" +
+                          "IP de destino não encontrado na tabela")
+                    continue
+                # Se o destino está na tabela, envia a mensagem para o próximo salto
+                print(
+                    "\033[97m" + f"Encaminhando mensagem \"{message}\" de {origin} para {destination}")
+                exit_ip = table[destination]['exit']
+                sock.sendto(text.encode(), (exit_ip, PORT))
+
+            else:
+                print("\033[91m" + f"Texto inválido recebido {text} de {addr}")
 
         except ConnectionResetError:
             sock.close()
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.bind((MY_IP, PORT))
 
+
+def message_sender():
+    while True:
+        message = input("\033[97m" + "Insira a mensagem: \n")
+        destination = input("\033[97m" + "Insira o ip de destino: \n")
+        if destination not in table:
+            print("\033[91m" + "IP de destino não encontrado na tabela")
+            continue
+        exit_ip = table[destination]['exit']
+        sock.sendto(
+            f"&{MY_IP}%{destination}%{message}".encode(), (exit_ip, PORT))
+
 # Função que envia uma mensagem para todos os vizinhos, quando entra na rede
+
+
 def enter_message():
     msg = f"@{MY_IP}:"
     for ip in NEIGHBOR_IPS:
         sock.sendto(msg.encode(), (ip, PORT))
+
 
 # Envia mensagem para todos os vizinhos, informando que entrou na rede
 enter_message()
@@ -174,6 +215,8 @@ enter_message()
 send_thread = threading.Thread(target=send_table)
 receive_thread = threading.Thread(target=receive)
 killer = threading.Thread(target=table_entry_killer)
+messenger = threading.Thread(target=message_sender)
 send_thread.start()
 receive_thread.start()
 killer.start()
+messenger.start()
