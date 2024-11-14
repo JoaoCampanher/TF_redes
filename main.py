@@ -33,6 +33,10 @@ neighbors_update_time = {}
 
 
 def print_table():
+    if len(table) == 0:
+        print("\033[93m" + "EMPTY TABLE")
+        return
+
     print('\033[93m' + '\nDESTINO \t MÉTRICA \t SAÍDA')
     for entry in table.values():
         print(
@@ -43,7 +47,6 @@ def print_table():
 # Inicia tabela com os vizinhos
 for ip in NEIGHBOR_IPS:
     table[ip] = {'ip': ip, 'metric': 1, 'exit': ip}
-print_table()
 # Função que envia a tabela para os vizinhos a cada 15 segundos
 
 
@@ -52,6 +55,8 @@ def send_table():
     time.sleep(15)
     while True:
         msg = ""
+        print_table()
+
         # Caso a tabela esteja vazia, não envia nada
         if len(table) == 0:
             continue
@@ -91,7 +96,6 @@ def table_entry_killer():
                 # Remove todas estas entradas da tabela, pois uma mensagem para aquele destino teria que passar por um vizinho morto
                 for ip_to_remove in ips_to_remove:
                     table.pop(ip_to_remove)
-                    print_table()
                     print(
                         "\033[91m" + f"REMOVING {ip_to_remove} FROM TABLE BECAUSE {ip} IS DEAD")
         time.sleep(35)
@@ -132,14 +136,11 @@ def receive():
                     if ip not in table:
                         table[ip] = {'ip': ip, 'metric': int(
                             metric) + 1, 'exit': addr}
-                        print_table()
                         continue
                     # Se a métrica do ip na tabela é maior que a métrica recebida + 1 substitui
                     # OU
                     # Se a saída do ip na tabela é o ip que enviou a mensagem, então o caminho antigo não é mais válido. Logo, atualiza a tabela
                     if (table[ip]['metric'] > int(metric) + 1) or (table[ip]['exit'] == addr):
-                        if table[ip]['metric'] != int(metric) + 1 or table[ip]['exit'] != addr:
-                            print_table()
                         table[ip]['metric'] = int(metric) + 1
                         table[ip]['exit'] = addr
                 # Para TODAS as entradas na tabela
@@ -159,14 +160,12 @@ def receive():
                     if (obj['exit'] == addr) and (obj['ip'] not in ips_list) and (obj['ip'] != obj['exit']):
                         # Remove o ip da tabela
                         table.pop(obj['ip'])
-                        print_table()
                         print("\033[91m" + f"REMOVING {obj['ip']} FROM TABLE")
 
             # Caso a mensagem seja de um novo vizinho que está se conectando agora
             elif text[0] == '@':
                 # Insire o ip na tabela com métrica 1 e saída para ele mesmo
                 table[addr] = {'ip': addr, 'metric': 1, 'exit': addr}
-                print_table()
                 # Adiciona o ip na lista de vizinhos, caso não esteja lá
                 if (addr not in NEIGHBOR_IPS):
                     NEIGHBOR_IPS.append(addr)
