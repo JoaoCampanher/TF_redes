@@ -8,17 +8,35 @@ PORT = 19000
 MY_IP = ''
 NEIGHBOR_IPS = []
 
-# pode receber argumentos de duas formas
-# 1 - Arquivo config.json
-# 2 - Argumentos na linha de comando ex: python main.py <meu_ip> <ip_vizinho1> <ip_vizinho2> ...
+
+def get_my_ip():
+    hostname = socket.gethostname()
+    my_ip = socket.gethostbyname(hostname)
+    return my_ip
+
+
+def get_ips_from_file(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    ips = [line.split('#')[0].strip()
+           for line in lines if line.strip() and not line.startswith('#')]
+    return ips
+
+# pode receber argumentos de três formas
+# 1 - Arquivo roteadores.txt, onde cada linha é um ip de um roteador vizinho, e o próprio ip é obtido automaticamente
+# 2 - Argumentos na linha de comando:
+#   2.1 - Para obter próprio ip automaticamente: "python main.py - <ip_vizinho1> <ip_vizinho2> ..."
+#   2.2 - Para inserir próprio ip manualmente: "python main.py <meu_ip> <ip_vizinho1> <ip_vizinho2> ..."
+
 args = sys.argv[1:]
 if len(args) == 0:
-    with open('config.json', 'r') as config_file:
-        config = json.load(config_file)
-        MY_IP = config['myIp']
-        NEIGHBOR_IPS = config['ips']
+    MY_IP = get_my_ip()
+    all_ips = get_ips_from_file('roteadores.txt')
+    NEIGHBOR_IPS = [ip for ip in all_ips if ip != MY_IP]
 else:
     MY_IP = args[0]
+    if MY_IP == '-':
+        MY_IP = get_my_ip()
     NEIGHBOR_IPS = args[1:]
 
 print(f"IP: {MY_IP}")
