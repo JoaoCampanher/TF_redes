@@ -55,8 +55,9 @@ def send_table():
     time.sleep(15)
     while True:
         msg = ""
-        print_table()
 
+        print_table()
+        time.sleep(15)
         # Caso a tabela esteja vazia, não envia nada
         if len(table) == 0:
             continue
@@ -77,7 +78,6 @@ def send_table():
 
         # \033[92m determina a cor do texto no terminal
         print("\033[92m" + f"SENDING: {msg}")
-        time.sleep(15)
 
 # Função que remove entradas da tabela que não foram atualizadas por 35 segundos
 
